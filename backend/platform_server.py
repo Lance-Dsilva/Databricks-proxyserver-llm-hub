@@ -1,5 +1,6 @@
 import logging
 import secrets
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, FastAPI, HTTPException, status
@@ -24,7 +25,12 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s — %(message)s",
 )
 
-app = FastAPI(title="AI Gateway — Platform")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_db()
+    yield
+
+app = FastAPI(title="AI Gateway — Platform", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -36,10 +42,6 @@ app.add_middleware(
 TOKEN_EXPIRES_DAYS = 30
 bearer_scheme = HTTPBearer()
 
-
-@app.on_event("startup")
-async def startup() -> None:
-    await init_db()
 
 
 # ── admin auth dependency ─────────────────────────────────────────────────────

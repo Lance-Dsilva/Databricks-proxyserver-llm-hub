@@ -1,23 +1,22 @@
 from datetime import datetime, timezone
 
+import bcrypt
+import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, jwt
-from passlib.context import CryptContext
 
 from config import JWT_ALGORITHM, JWT_EXPIRE_MINUTES, SECRET_KEY
 from utils.models import User
 
-pwd_context  = CryptContext(schemes=["bcrypt"], deprecated="auto")
 bearer_scheme = HTTPBearer()
 
 
 def hash_password(plain: str) -> str:
-    return pwd_context.hash(plain)
+    return bcrypt.hashpw(plain.encode(), bcrypt.gensalt()).decode()
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    return bcrypt.checkpw(plain.encode(), hashed.encode())
 
 
 def create_jwt(user: User) -> str:
@@ -36,7 +35,7 @@ def create_jwt(user: User) -> str:
 def decode_jwt(token: str) -> dict:
     try:
         return jwt.decode(token, SECRET_KEY, algorithms=[JWT_ALGORITHM])
-    except JWTError:
+    except jwt.InvalidTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"error": "invalid or expired JWT", "code": "UNAUTHORIZED"},

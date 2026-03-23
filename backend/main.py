@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import time
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 from fastapi import Depends, FastAPI, HTTPException, status
@@ -18,7 +19,12 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s — %(message)s",
 )
 
-app = FastAPI(title="AI Gateway — Proxy")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_db()
+    yield
+
+app = FastAPI(title="AI Gateway — Proxy", lifespan=lifespan)
 
 bearer_scheme = HTTPBearer()
 
@@ -50,10 +56,6 @@ async def _get_rate_settings() -> tuple[int, int]:
         logging.getLogger(__name__).warning("settings cache refresh failed: %s", exc)
     return _settings_cache["rate_limit"], _settings_cache["rate_window"]
 
-
-@app.on_event("startup")
-async def startup() -> None:
-    await init_db()
 
 
 # ── request log (fire-and-forget) ────────────────────────────────────────────
